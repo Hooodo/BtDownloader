@@ -64,14 +64,14 @@ namespace BtDownloader
 
             #region INITAL VAR            
 
-            _url = "http://184.154.178.130/thread0806.php?fid=15";
-            _baseUrl = "http://184.154.178.130/";
+            _baseUrl = "http://cl.bearhk.info/";
+            _url = _baseUrl + "thread0806.php?fid=15";
             _gridItemInfos = new ObservableCollection<ItemInfo>();
             _tempItemInfos = new ObservableCollection<ItemInfo>();
             _selectedItem = 0;
             _currentItem = 0;
             _selectedPage = 0;
-            _fids = new[] {15, 2, 4, 5};
+            _fids = new[] {15, 2, 4, 5, 8};
             ContextMenu.PreviewMouseDown += ContextMenuOnPreviewMouseDown;
             _addGridList = AddGridItem;
             _showTextInfo = ShowInfo;
@@ -183,9 +183,9 @@ namespace BtDownloader
                 String[] titles = innerNode.InnerText.Trim().Split(new[] { '\r', '\n' });
                 if (!titles[0].StartsWith("[") || titles[0].Contains("公告")) continue;
                 //Debug.WriteLine(title);
-                if (_selectedPage == 3 && titles.Length >= 3)
+                if ((_selectedPage == 4 || _selectedPage == 3) && titles.Length >= 3)
                 {
-                    info.Title = titles[0]+titles[2].Substring(1);
+                    info.Title = titles[0] + titles[2].Substring(1);
                 }
                 else
                     info.Title = titles[0];
@@ -309,6 +309,32 @@ namespace BtDownloader
             req.Abort();
         }
 
+        public void DownloadPic(string url, string dir)
+        {
+            if (url == String.Empty)
+                return;
+
+            string html = GetHtmlPage(url);
+            string search = "type='image' src=";
+            int start = 0;
+            int count = 0;
+            int index = html.IndexOf(search, start);
+            while (index != -1)
+            {
+                string imageurl = html.Substring(index + 18, html.IndexOf("'", index + 18) - index - 18);
+                Debug.WriteLine("[*] image: " + imageurl);
+
+                using (System.Net.WebClient wc = new WebClient())
+                {
+                    wc.Headers.Add("User-Agent", DefaultUserAgent);
+                    wc.DownloadFile(imageurl, string.Format("{0}\\{1}.{2}", dir, count, imageurl.Substring(imageurl.LastIndexOf('.') + 1)));
+                }
+
+                index = html.IndexOf(search, index + 18);
+                count++;
+            }
+        }
+
         public void RefreshThread()
         {
             Dispatcher.Invoke(_updateButton, new object[] { BtnRefresh, false });
@@ -354,7 +380,14 @@ namespace BtDownloader
             //Debug.WriteLine(String.Format("[*] item:{0},url:{1}", _currentItem, url));
             try
             {
-                DownloadBt(ParseRmlink(GetHtmlPage(url)));
+                if (_selectedPage < 4)
+                    DownloadBt(ParseRmlink(GetHtmlPage(url)));
+                else if (_selectedPage == 4)
+                {
+                    Directory.CreateDirectory(String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), item.Title));
+                    DownloadPic(url, String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), item.Title));
+                }
+                else ;
             }
             catch (Exception)
             {
@@ -437,7 +470,7 @@ namespace BtDownloader
         private void CbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selectedPage = CbType.SelectedIndex;
-            _url = String.Format("http://184.154.178.130/thread0806.php?fid={0}", _fids[_selectedPage]);
+            _url = String.Format("{0}thread0806.php?fid={1}", _baseUrl, _fids[_selectedPage]);
         }
     }
 }

@@ -47,6 +47,7 @@
                     <ComboBoxItem Content="Asia NonM"></ComboBoxItem>
                     <ComboBoxItem Content="Western"></ComboBoxItem>
                     <ComboBoxItem Content="Cartoon"></ComboBoxItem>
+                    <ComboBoxItem Content="Pic"></ComboBoxItem>
                 </ComboBox>               
             </StackPanel>
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10">
