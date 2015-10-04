@@ -20,6 +20,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Xml;
 using HtmlAgilityPack;
 using WPF.Themes;
 
@@ -33,7 +34,8 @@ namespace BtDownloader
         #region DEFS
 
         private string _url;
-        private readonly string _baseUrl;
+        private string _baseUrl;
+        private string _fidUrl;
         private int _itemcount;
         private string _keyword;
         private int _selectedItem;
@@ -45,7 +47,7 @@ namespace BtDownloader
         //private Thread _downloadThread;
         private const string DefaultUserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
         private readonly ObservableCollection<ItemInfo> _gridItemInfos;
-        private readonly ObservableCollection<ItemInfo> _tempItemInfos; 
+        private readonly ObservableCollection<ItemInfo> _tempItemInfos;
 
         private delegate void AddGridList(ItemInfo itemInfo);
         private delegate void ShowTextInfo(string info);
@@ -62,23 +64,23 @@ namespace BtDownloader
         {
             InitializeComponent();
 
-            #region INITAL VAR            
+            #region INITAL VAR
 
-            _baseUrl = "http://cl.bearhk.info/";
-            _url = _baseUrl + "thread0806.php?fid=15";
+            _fids = new Int32[5];
+            LoadSetting();
+            _url = _baseUrl + _fidUrl + _fids[0];
+
             _gridItemInfos = new ObservableCollection<ItemInfo>();
             _tempItemInfos = new ObservableCollection<ItemInfo>();
             _selectedItem = 0;
             _currentItem = 0;
             _selectedPage = 0;
-            _fids = new[] {15, 2, 4, 5, 8};
             ContextMenu.PreviewMouseDown += ContextMenuOnPreviewMouseDown;
             _addGridList = AddGridItem;
             _showTextInfo = ShowInfo;
             _updateButton = UpdateBtnState;
             _updateProgress = UpdateProgressBar;
 
-            TxtItemCount.Text = "50";
             //CbType.Text = "1";
             CbType.SelectedIndex = 0;
             CbThemes.ItemsSource = ThemeManager.GetThemes();
@@ -88,8 +90,6 @@ namespace BtDownloader
             ProgressBarControl.Value = 0;
             DataGrid.DataContext = _gridItemInfos;
             _isKeyword = false;
-
-            LoadSetting();
 
             #endregion
         }
@@ -103,7 +103,32 @@ namespace BtDownloader
 
         public void LoadSetting()
         {
-            _itemcount = Int32.Parse(TxtItemCount.Text);
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.Load("Config.xml");
+
+            XmlNode xn = xmlDoc.SelectSingleNode("Config");
+            //Common
+            XmlNode common = xn.ChildNodes[0];
+            XmlElement itemcnt = (XmlElement)common.ChildNodes[0];
+            _itemcount = Int32.Parse(itemcnt.InnerText);
+            TxtItemCount.Text = itemcnt.InnerText;
+            XmlElement url = (XmlElement)common.ChildNodes[1];
+            _baseUrl = url.InnerText;
+            //Item
+            XmlNode items = xn.ChildNodes[1];
+            XmlElement fidUrl = (XmlElement)items.ChildNodes[0];
+            _fidUrl = fidUrl.InnerText;
+            XmlNode subitems = items.ChildNodes[1];
+            int index = 0;
+            foreach (XmlNode xni in subitems.ChildNodes)
+            {
+                XmlElement xe = (XmlElement)xni.ChildNodes[1];
+                _fids[index++] = Int32.Parse(xe.InnerText);
+            }
+            if (!Directory.Exists("BT"))
+                Directory.CreateDirectory("BT");
+            if (!Directory.Exists("TEMP"))
+                Directory.CreateDirectory("TEMP");
         }
 
         #region DELEGATE
@@ -161,14 +186,21 @@ namespace BtDownloader
             swWriter.Close();
         }
 
+        public string ParsePath(string path)
+        {
+            StringBuilder sb = new StringBuilder(path);
+            foreach (char rc in System.IO.Path.GetInvalidFileNameChars())
+                sb.Replace(rc.ToString(), string.Empty);
+
+            return sb.ToString();
+        }
+
         public int ParseSubjects(String page, int itemcount)
         {
             HtmlDocument document = new HtmlDocument();
             HtmlNode.ElementsFlags.Remove("form");
-            //document.LoadHtml(page);
             document.LoadHtml(page);
 
-            //HtmlNode nodeList = document.DocumentNode.SelectSingleNode("/html/body/div[2]/div[3]/table");
             int retcount = 0;
             HtmlNode nodeList = document.DocumentNode.SelectSingleNode("//*[@id=\"ajaxtable\"]");
             foreach (HtmlNode node in nodeList.ChildNodes[3].ChildNodes)
@@ -222,7 +254,7 @@ namespace BtDownloader
             _currentItem = index;
             ParameterizedThreadStart parameterizedThreadStart = new ParameterizedThreadStart(DownloadThread);
             Thread downloadThread = new Thread(parameterizedThreadStart);
-            downloadThread.Start(index);            
+            downloadThread.Start(index);
         }
 
         public void DownloadBt(string url)
@@ -283,10 +315,7 @@ namespace BtDownloader
             Stream dataStream = response.GetResponseStream();
             Debug.Assert(dataStream != null, "dataStream != null");
             WebHeaderCollection wh = response.Headers;
-            //foreach (string s in wh)
-            //{
-            //    Debug.WriteLine(s + ":" + wh[s]);
-            //}
+
             string attach = "";
             if (wh.AllKeys.Contains("Content-Disposition"))
                 attach = wh["Content-Disposition"];
@@ -295,12 +324,8 @@ namespace BtDownloader
             attach = attach.Substring(start + 1, attach.LastIndexOf('"') - start - 1);
             Debug.WriteLine("[*] Filename:" + attach);
 
-            //using (var fileStream = File.Create(attach))
-            //{
-            //    dataStream.CopyTo(fileStream);
-            //}
             GZipStream gZipStream = new GZipStream(dataStream, CompressionMode.Decompress);
-            using (var fileStream = File.Create(attach))
+            using (var fileStream = File.Create("BT\\" + attach))
             {
                 gZipStream.CopyTo(fileStream);
             }
@@ -335,10 +360,45 @@ namespace BtDownloader
             }
         }
 
+        public void PreviewPic(string url, string dir)
+        {
+            HtmlDocument document = new HtmlDocument();
+            HtmlNode.ElementsFlags.Remove("form");
+            document.LoadHtml(GetHtmlPage(url));
+
+            HtmlNode nodeList = document.DocumentNode.SelectSingleNode("//*[@class=\"tpc_content do_not_catch\"]");
+            //Debug.WriteLine(nodeList.InnerHtml);
+            string innerText = nodeList.InnerHtml;
+            int index = innerText.IndexOf("img src=");
+            if (index == -1) return;
+            int lastindex = innerText.IndexOf('\'', index + 11);
+            string imageurl = innerText.Substring(index + 9, lastindex - index - 9);
+            Debug.WriteLine("[*] image: " + imageurl);
+            string imagePath = string.Format("{0}\\preview.{1}", dir, imageurl.Substring(imageurl.LastIndexOf('.') + 1));
+            using (System.Net.WebClient wc = new WebClient())
+            {
+                wc.Headers.Add("User-Agent", DefaultUserAgent);
+                wc.DownloadFile(imageurl, imagePath);
+            }
+            Process proc = new Process();
+            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + "\\" + imagePath;
+            proc.StartInfo.UseShellExecute = true;
+            try
+            {
+                proc.Start();
+            }
+            catch(Exception e)
+            {
+                Debug.WriteLine(String.Format("[!] open image file {0} : {1}", imagePath, e));
+            }
+        }
+
         public void RefreshThread()
         {
             Dispatcher.Invoke(_updateButton, new object[] { BtnRefresh, false });
             Dispatcher.Invoke(_updateButton, new object[] { BtnDownload, false });
+            Dispatcher.Invoke(_updateButton, new object[] { BtnPreview, false });
+            
             try
             {
                 int pagenum = 2;
@@ -365,6 +425,7 @@ namespace BtDownloader
             }
             Dispatcher.Invoke(_updateButton, new object[] { BtnRefresh, true });
             Dispatcher.Invoke(_updateButton, new object[] { BtnDownload, true });
+            Dispatcher.Invoke(_updateButton, new object[] { BtnPreview, true });
         }
 
         public void DownloadThread(object index)
@@ -384,8 +445,8 @@ namespace BtDownloader
                     DownloadBt(ParseRmlink(GetHtmlPage(url)));
                 else if (_selectedPage == 4)
                 {
-                    Directory.CreateDirectory(String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), item.Title));
-                    DownloadPic(url, String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), item.Title));
+                    Directory.CreateDirectory(String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+                    DownloadPic(url, String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
                 }
                 else ;
             }
@@ -394,9 +455,26 @@ namespace BtDownloader
                 Debug.WriteLine("[!] Download failed");
                 Dispatcher.Invoke(_showTextInfo, String.Format("Download {0} failed", (int)index));
             }
-            
+
             Dispatcher.Invoke(_updateProgress, null);
             Dispatcher.Invoke(_updateButton, new object[] { BtnDownload, true });
+        }
+
+        public void PreviewThread(object index)
+        {
+            Dispatcher.Invoke(_updateButton, new object[] { BtnPreview, false });
+            ItemInfo item = _isKeyword ? _tempItemInfos[(int)index] : _gridItemInfos[(int)index];
+            
+            if (_selectedPage < 4)
+            {
+                Directory.CreateDirectory(String.Format("{0}\\TEMP\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+                PreviewPic(_baseUrl + item.Link, String.Format("{0}\\TEMP\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+            }
+            else
+            {
+
+            }
+            Dispatcher.Invoke(_updateButton, new object[] { BtnPreview, true });
         }
 
         private void BtnRefresh_OnClick(object sender, RoutedEventArgs e)
@@ -421,7 +499,7 @@ namespace BtDownloader
         {
             foreach (var info in _gridItemInfos)
             {
-                info.IsDown =! info.IsDown;
+                info.IsDown = !info.IsDown;
             }
         }
 
@@ -460,17 +538,33 @@ namespace BtDownloader
 
         private void BtnDeleteAll_OnClick(object sender, RoutedEventArgs e)
         {
-            var btfiles = Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "*.torrent");
+            var btfiles = Directory.EnumerateFiles(Directory.GetCurrentDirectory()+"\\BT", "*.torrent");
             foreach (string btfile in btfiles)
             {
                 File.Delete(btfile);
+            }
+            var picfiles = Directory.EnumerateDirectories(Directory.GetCurrentDirectory() + "\\TEMP");
+            foreach (string picfile in picfiles)
+            {
+                DirectoryInfo di = new DirectoryInfo(picfile);
+                di.Delete(true);
             }
         }
 
         private void CbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selectedPage = CbType.SelectedIndex;
-            _url = String.Format("{0}thread0806.php?fid={1}", _baseUrl, _fids[_selectedPage]);
+            _url = String.Format("{0}{1}{2}", _baseUrl, _fidUrl, _fids[_selectedPage]);
+        }
+
+        private void BtnPreview_Click(object sender, RoutedEventArgs e)
+        {
+            _selectedItem = DataGrid.SelectedIndex;
+            if (_selectedItem == -1) return;
+
+            ParameterizedThreadStart parameterizedThreadStart = new ParameterizedThreadStart(PreviewThread);
+            Thread previewThread = new Thread(parameterizedThreadStart);
+            previewThread.Start(_selectedItem);
         }
     }
 }

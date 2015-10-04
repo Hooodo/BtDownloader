@@ -54,8 +54,9 @@
                 <Button Content="Select All" Name="BtnSelectAll" Width="140" Click="BtnSelectAll_OnClick"/>
                 <Button Content="UnSelect All" Name="BtnUnSelectAll" Width="140" Margin="10,0,0,0"  Click="BtnUnSelectAll_OnClick"/>
             </StackPanel>
-            <Button Grid.Row="3" Name="BtnDownload" Content="Download Select" Margin="10" Click="BtnDownload_OnClick"></Button>
-            <Button Grid.Row="5" Name="BtnDeleteAll" Content="Delete All Bt Files" Margin="10" Click="BtnDeleteAll_OnClick"></Button>
+            <Button Grid.Row="3" Name="BtnPreview" Content="Preview Select" Margin="10" Click="BtnPreview_Click" IsEnabled="False"></Button>
+            <Button Grid.Row="4" Name="BtnDownload" Content="Download Select" Margin="10" Click="BtnDownload_OnClick" IsEnabled="False"></Button>
+            <Button Grid.Row="5" Name="BtnDeleteAll" Content="Clear All Files" Margin="10" Click="BtnDeleteAll_OnClick"></Button>
             <ComboBox Grid.Row="6" Name="CbThemes" Margin="10"></ComboBox>
             <Button Grid.Row="7" Grid.RowSpan="2" Name="BtnRefresh" Content="Refresh" Margin="10" Click="BtnRefresh_OnClick"></Button>
             <TextBlock Grid.Row="9" Grid.RowSpan="2" Name="TxtInfo"></TextBlock>

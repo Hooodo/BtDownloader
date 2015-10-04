@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Config>
+  <Common>
+    <ItemCnt>50</ItemCnt>
+    <URL>http://cl.bearhk.info/</URL>
+  </Common>
+  <SubURL>
+    <Base>thread0806.php?fid=</Base>
+    <Items>
+      <Item id="0">
+        <Name>Asia M</Name>
+        <Fid>15</Fid>
+      </Item>
+      <Item id="1">
+        <Name>Asia NonM</Name>
+        <Fid>2</Fid>
+      </Item>
+      <Item id="2">
+        <Name>Asia Western</Name>
+        <Fid>4</Fid>
+      </Item>
+      <Item id="3">
+        <Name>Asia Cartoon</Name>
+        <Fid>5</Fid>
+      </Item>
+      <Item id="4">
+        <Name>Asia Pic</Name>
+        <Fid>8</Fid>
+      </Item>
+    </Items>    
+  </SubURL>
+</Config>
