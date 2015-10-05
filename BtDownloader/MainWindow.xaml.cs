@@ -129,6 +129,8 @@ namespace BtDownloader
                 Directory.CreateDirectory("BT");
             if (!Directory.Exists("TEMP"))
                 Directory.CreateDirectory("TEMP");
+            if (!Directory.Exists("PIC"))
+                Directory.CreateDirectory("PIC");
         }
 
         #region DELEGATE
@@ -360,7 +362,7 @@ namespace BtDownloader
             }
         }
 
-        public void PreviewPic(string url, string dir)
+        public void PreviewPic(string url, string dir, string title)
         {
             HtmlDocument document = new HtmlDocument();
             HtmlNode.ElementsFlags.Remove("form");
@@ -369,7 +371,13 @@ namespace BtDownloader
             HtmlNode nodeList = document.DocumentNode.SelectSingleNode("//*[@class=\"tpc_content do_not_catch\"]");
             //Debug.WriteLine(nodeList.InnerHtml);
             string innerText = nodeList.InnerHtml;
-            int index = innerText.IndexOf("img src=");
+            int index = innerText.IndexOf(title.Substring(0, title.IndexOf(']')+1));
+            if (index != -1)
+            {
+                innerText = innerText.Substring(index);
+                //Debug.WriteLine("[!!] Find it!");
+            }
+            index = innerText.IndexOf("img src=");
             if (index == -1) return;
             int lastindex = innerText.IndexOf('\'', index + 11);
             string imageurl = innerText.Substring(index + 9, lastindex - index - 9);
@@ -445,8 +453,8 @@ namespace BtDownloader
                     DownloadBt(ParseRmlink(GetHtmlPage(url)));
                 else if (_selectedPage == 4)
                 {
-                    Directory.CreateDirectory(String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
-                    DownloadPic(url, String.Format("{0}\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+                    Directory.CreateDirectory(String.Format("{0}\\PIC\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+                    DownloadPic(url, String.Format("{0}\\PIC\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
                 }
                 else ;
             }
@@ -468,7 +476,7 @@ namespace BtDownloader
             if (_selectedPage < 4)
             {
                 Directory.CreateDirectory(String.Format("{0}\\TEMP\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
-                PreviewPic(_baseUrl + item.Link, String.Format("{0}\\TEMP\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)));
+                PreviewPic(_baseUrl + item.Link, String.Format("{0}\\TEMP\\{1}", Directory.GetCurrentDirectory(), ParsePath(item.Title)), item.Title);
             }
             else
             {
@@ -543,8 +551,14 @@ namespace BtDownloader
             {
                 File.Delete(btfile);
             }
-            var picfiles = Directory.EnumerateDirectories(Directory.GetCurrentDirectory() + "\\TEMP");
+            var picfiles = Directory.EnumerateDirectories(Directory.GetCurrentDirectory() + "\\PIC");
             foreach (string picfile in picfiles)
+            {
+                DirectoryInfo di = new DirectoryInfo(picfile);
+                di.Delete(true);
+            }
+            var tmpfiles = Directory.EnumerateDirectories(Directory.GetCurrentDirectory() + "\\TEMP");
+            foreach (string picfile in tmpfiles)
             {
                 DirectoryInfo di = new DirectoryInfo(picfile);
                 di.Delete(true);

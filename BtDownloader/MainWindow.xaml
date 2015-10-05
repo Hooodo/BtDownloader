@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:themes="clr-namespace:WPF.Themes;assembly=WPF.Themes"
         themes:ThemeManager.Theme="{Binding ElementName=CbThemes, Path=SelectedItem}"
-        Title="BtDownloader" Height="800" Width="1200">
+        Title="BtDownloader" Height="800" Width="1200" Icon="ICO/app.ico">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="850"></ColumnDefinition>
